@@ -2,6 +2,7 @@ import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
 import { store } from '../store';
 import { startRecording, stopRecording } from '../store/slices/recordingSlice';
 import { addConversation } from '../store/slices/conversationsSlice';
+import { mockCallDetectionService } from './MockCallDetectionService';
 
 interface CallDetectionModule {
   startCallMonitoring(): Promise<boolean>;
@@ -14,6 +15,9 @@ interface CallDetectionModule {
 const { CallDetectionModule } = NativeModules as {
   CallDetectionModule: CallDetectionModule;
 };
+
+// Check if native module is available
+const isNativeModuleAvailable = !!CallDetectionModule;
 
 export interface CallEvent {
   type: 'CALL_STARTED' | 'CALL_ENDED' | 'CALL_CONNECTED';
@@ -30,9 +34,11 @@ class CallDetectionService {
   private callStartTime: Date | null = null;
 
   constructor() {
-    if (CallDetectionModule) {
+    if (isNativeModuleAvailable) {
       this.eventEmitter = new NativeEventEmitter(CallDetectionModule as any);
       this.setupEventListeners();
+    } else {
+      console.warn('CallDetectionModule native module not available. Call detection will be disabled.');
     }
   }
 
@@ -41,9 +47,11 @@ class CallDetectionService {
    */
   async initialize(): Promise<boolean> {
     try {
-      if (!CallDetectionModule) {
-        console.warn('CallDetectionModule not available on this platform');
-        return false;
+      if (!isNativeModuleAvailable) {
+        console.warn('CallDetectionModule not available on this platform. Using mock service for development.');
+
+        // Use mock service for development/testing
+        return await mockCallDetectionService.initialize();
       }
 
       // Request necessary permissions
@@ -69,9 +77,9 @@ class CallDetectionService {
         return true;
       }
 
-      if (!CallDetectionModule) {
-        console.warn('CallDetectionModule not available');
-        return false;
+      if (!isNativeModuleAvailable) {
+        console.warn('CallDetectionModule not available, using mock service');
+        return await mockCallDetectionService.startCallMonitoring();
       }
 
       const success = await CallDetectionModule.startCallMonitoring();
@@ -96,8 +104,8 @@ class CallDetectionService {
         return true;
       }
 
-      if (!CallDetectionModule) {
-        return false;
+      if (!isNativeModuleAvailable) {
+        return await mockCallDetectionService.stopCallMonitoring();
       }
 
       const success = await CallDetectionModule.stopCallMonitoring();
@@ -118,8 +126,8 @@ class CallDetectionService {
    */
   async requestPermissions(): Promise<boolean> {
     try {
-      if (!CallDetectionModule) {
-        return false;
+      if (!isNativeModuleAvailable) {
+        return await mockCallDetectionService.requestPermissions();
       }
 
       return await CallDetectionModule.requestPermissions();
@@ -134,8 +142,8 @@ class CallDetectionService {
    */
   async isCallActive(): Promise<boolean> {
     try {
-      if (!CallDetectionModule) {
-        return false;
+      if (!isNativeModuleAvailable) {
+        return await mockCallDetectionService.isCallActive();
       }
 
       return await CallDetectionModule.isCallActive();
@@ -312,6 +320,9 @@ class CallDetectionService {
    * Get current monitoring status
    */
   isCurrentlyMonitoring(): boolean {
+    if (!isNativeModuleAvailable) {
+      return mockCallDetectionService.isCurrentlyMonitoring();
+    }
     return this.isMonitoring;
   }
 
