@@ -1,97 +1,252 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Relive - Personal Relationship Companion
 
-# Getting Started
+**Relive** is a personal relationship companion app that helps users strengthen their relationships by automatically detecting and recording phone calls, extracting commitments, and providing AI-powered insights to be a better friend, family member, and partner.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## 🚀 Core Value Proposition
 
-## Step 1: Start Metro
+Never forget what matters in your personal relationships - track promises, remember important updates, and get reminders to check in with the people you care about.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+## ✨ Features
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+### MVP Features (Currently Implemented)
+- **📞 Automatic Call Detection** - Detects incoming/outgoing calls using native iOS CallKit and Android TelephonyManager
+- **👥 Contact Management** - Link recordings to specific people with relationship context
+- **🏠 Dashboard** - Overview of call detection status and recent activity
+- **🔧 Mock Development Mode** - Graceful fallback for testing without native modules
+- **🛡️ Privacy-First Architecture** - Local-first processing with comprehensive error handling
 
-```sh
-# Using npm
-npm start
+### Planned Features
+- **🎙️ Audio Recording** - Capture call audio with user consent
+- **📝 Speech-to-Text** - Convert conversations to searchable transcripts
+- **🤖 AI Commitment Extraction** - Identify promises and commitments using GPT-4
+- **⏰ Smart Reminders** - Notifications about commitments and follow-ups
+- **📊 Relationship Dashboard** - Health scores and communication patterns
+- **🔍 Conversation Search** - Find past conversations by content or contact
+- **🔐 End-to-End Encryption** - Secure sensitive conversation data
 
-# OR using Yarn
-yarn start
+## 🛠️ Technology Stack
+
+- **Frontend**: React Native 0.81.4 with TypeScript
+- **State Management**: Redux Toolkit
+- **Navigation**: React Navigation 6
+- **Database**: SQLite (planned)
+- **Audio**: Native modules (iOS: CallKit, Android: TelephonyManager)
+- **AI**: OpenAI GPT-4 API (planned)
+- **Permissions**: react-native-permissions
+
+## 🏗️ Architecture
+
+### Project Structure
+```
+src/
+├── components/           # Reusable UI components
+├── screens/             # Screen components
+│   ├── HomeScreen.tsx   # Main dashboard
+│   ├── ContactsScreen.tsx # Contact management
+│   └── ConversationsScreen.tsx # Call history
+├── services/            # Business logic
+│   ├── CallDetectionService.ts # Cross-platform call detection
+│   └── MockCallDetectionService.ts # Development fallback
+├── hooks/               # Custom React hooks
+│   └── useCallDetection.ts # Call detection hook
+├── store/               # Redux store
+│   └── slices/          # Redux Toolkit slices
+├── types/               # TypeScript definitions
+└── utils/               # Utility functions
+
+ios/ReliveApp/           # iOS native modules
+├── CallDetectionModule.swift # iOS CallKit integration
+└── CallDetectionModule.m     # Objective-C bridge
+
+android/app/src/main/java/com/reliveapp/
+├── CallDetectionModule.kt    # Android call detection
+└── CallDetectionPackage.kt   # React Native package
 ```
 
-## Step 2: Build and run your app
+### Data Models
+```typescript
+interface Contact {
+  id: string;
+  name: string;
+  phone?: string;
+  relationshipType: 'family' | 'friend' | 'partner' | 'colleague';
+  relationshipCloseness: number; // 1-10 scale
+  lastContactDate: Date;
+}
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+interface Conversation {
+  id: string;
+  contactId: string;
+  startTime: Date;
+  endTime?: Date;
+  duration: number;
+  transcript: string;
+  emotionalTone: 'positive' | 'negative' | 'neutral' | 'mixed';
+  audioFilePath: string;
+}
 
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
+interface Commitment {
+  id: string;
+  conversationId: string;
+  text: string;
+  whoCommitted: 'user' | 'contact';
+  dueDate?: Date;
+  status: 'pending' | 'completed' | 'overdue';
+}
 ```
 
-### iOS
+## 🚀 Getting Started
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+### Prerequisites
+- React Native development environment ([Setup Guide](https://reactnative.dev/docs/set-up-your-environment))
+- iOS development: Xcode 12+ and iOS 13+
+- Android development: Android SDK 21+
+- Node.js 16+ and npm/yarn
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+### Installation
 
-```sh
-bundle install
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/peersclub/relive.git
+   cd relive
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **iOS Setup**
+   ```bash
+   cd ios && pod install && cd ..
+   ```
+
+4. **Run the app**
+   ```bash
+   # iOS Simulator
+   npm run ios
+
+   # Android Emulator
+   npm run android
+
+   # Start Metro bundler
+   npm start
+   ```
+
+## 📱 Native Module Setup
+
+The app uses native modules for call detection. Currently runs with a mock service for development.
+
+### iOS CallKit Integration
+To enable real call detection on iOS, follow the manual setup in `NATIVE_MODULE_SETUP.md`:
+
+1. Open `ios/ReliveApp.xcworkspace` in Xcode
+2. Add `CallDetectionModule.swift` and `CallDetectionModule.m` to the project
+3. Configure Swift bridging header
+4. Add CallKit.framework to "Link Binary With Libraries"
+5. Build and test on physical device
+
+### Android Setup
+Android modules are pre-configured but require:
+- Phone state permissions in AndroidManifest.xml ✅
+- TelephonyManager integration ✅
+- Runtime permission handling ✅
+
+## 🧪 Development & Testing
+
+### Mock Service
+The app includes a mock call detection service for development:
+```typescript
+// Automatically used when native modules are unavailable
+const { mockCallDetectionService } = require('./MockCallDetectionService');
 ```
 
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
+### Testing Commands
+```bash
+# Run on iOS simulator (mock service)
 npm run ios
 
-# OR using Yarn
-yarn ios
+# Run on physical iOS device (real call detection after setup)
+npm run ios -- --device
+
+# Android testing
+npm run android
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+### Current Status
+- ✅ App runs successfully with mock call detection
+- ✅ Error handling for missing native modules
+- ✅ Cross-platform UI and navigation
+- 🔄 Native modules created but need manual Xcode integration
+- 🔄 Audio recording implementation pending
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## 🔐 Privacy & Security
 
-## Step 3: Modify your app
+### Privacy-First Design
+- **Local Processing**: Conversations stored locally by default
+- **User Consent**: Explicit permission for call recording
+- **Data Control**: Users can export or delete all data
+- **Minimal Data**: Only essential information is collected
 
-Now that you have successfully run the app, let's make changes!
+### Legal Compliance
+- Call recording compliance warnings
+- Regional law considerations
+- User notification requirements
+- Consent management system
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+## 🗺️ Development Roadmap
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+### Phase 1: Foundation (Weeks 1-4) - 75% Complete
+- [x] Project setup and architecture
+- [x] Call detection implementation
+- [x] Basic UI and navigation
+- [ ] Audio recording integration
+- [ ] Speech-to-text transcription
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+### Phase 2: AI Intelligence (Weeks 5-8)
+- [ ] OpenAI GPT-4 integration
+- [ ] Commitment extraction
+- [ ] Conversation analysis
+- [ ] Smart reminders
 
-## Congratulations! :tada:
+### Phase 3: Enhancement (Weeks 9-12)
+- [ ] Relationship dashboard
+- [ ] Advanced analytics
+- [ ] Security hardening
+- [ ] Beta testing and launch
 
-You've successfully run and modified your React Native App. :partying_face:
+## 🤝 Contributing
 
-### Now what?
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+### Development Guidelines
+- Follow TypeScript strict mode
+- Use Redux Toolkit for state management
+- Implement proper error handling
+- Write tests for new features
+- Follow React Native best practices
 
-# Troubleshooting
+## 📄 License
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-# Learn More
+## 🙏 Acknowledgments
 
-To learn more about React Native, take a look at the following resources:
+- Inspired by [Granola](https://granola.so/) for meeting productivity
+- Built with React Native and the amazing open source community
+- CallKit and TelephonyManager for native call detection
+- OpenAI for AI-powered insights
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/peersclub/relive/issues)
+- **Documentation**: See `Steps.md` for detailed development guide
+- **Setup Help**: Check `NATIVE_MODULE_SETUP.md` for native module integration
+
+---
+
+**Relive** - Strengthening relationships through thoughtful technology 💝
