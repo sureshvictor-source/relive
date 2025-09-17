@@ -56,11 +56,12 @@ src/
 ```
 
 #### Week 3: Audio Recording Foundation
-- [ ] 🔄 Implement basic audio recording functionality
-- [ ] 🔄 Set up permissions handling for microphone access
-- [ ] 🔄 Create recording controls (start, stop, pause)
-- [ ] 🔄 Basic audio file storage and management
-- [ ] 🔄 Test audio recording across different devices
+- [x] ✅ Implement automatic call detection (iOS CallKit + Android TelephonyManager)
+- [x] ✅ Set up permissions handling for call monitoring and microphone access
+- [x] ✅ Create call detection service with event handling
+- [x] ✅ Implement UI integration for call detection status
+- [ ] 🔄 Add audio recording functionality to capture call audio
+- [ ] 🔄 Test call detection and recording across different devices
 
 **Key files to create:**
 ```

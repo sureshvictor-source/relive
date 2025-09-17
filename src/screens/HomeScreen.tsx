@@ -10,6 +10,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../store';
 import { fetchContacts } from '../store/slices/contactsSlice';
 import { fetchCommitments } from '../store/slices/commitmentsSlice';
+import { useCallDetection } from '../hooks/useCallDetection';
 
 interface HomeScreenProps {
   navigation: any; // TODO: Type this properly with navigation prop
@@ -21,11 +22,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const { commitments } = useAppSelector((state) => state.commitments);
   const { isRecording } = useAppSelector((state) => state.recording);
 
+  // Call detection hook
+  const {
+    isInitialized,
+    isMonitoring,
+    hasPermissions,
+    isCallActive,
+    error,
+    initializeCallDetection,
+    startMonitoring,
+    stopMonitoring,
+    requestPermissions,
+  } = useCallDetection();
+
   useEffect(() => {
     // Load initial data
     dispatch(fetchContacts());
     dispatch(fetchCommitments());
-  }, [dispatch]);
+
+    // Initialize call detection
+    initializeCallDetection();
+  }, [dispatch, initializeCallDetection]);
 
   const pendingCommitments = commitments.filter(c => c.status === 'pending');
   const overdueCommitments = commitments.filter(c => c.status === 'overdue');
@@ -79,11 +96,43 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         </View>
       </View>
 
+      {/* Call Detection Status */}
+      {isCallActive && (
+        <View style={styles.callActiveBanner}>
+          <View style={styles.callActiveIndicator} />
+          <Text style={styles.callActiveText}>Call in progress - Auto recording</Text>
+        </View>
+      )}
+
       {/* Recording Status */}
-      {isRecording && (
+      {isRecording && !isCallActive && (
         <View style={styles.recordingBanner}>
           <View style={styles.recordingIndicator} />
-          <Text style={styles.recordingText}>Recording in progress...</Text>
+          <Text style={styles.recordingText}>Manual recording in progress...</Text>
+        </View>
+      )}
+
+      {/* Call Detection Status */}
+      {isInitialized && (
+        <View style={styles.statusContainer}>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusLabel}>Auto-Detection:</Text>
+            <View style={[styles.statusIndicator, isMonitoring ? styles.statusActive : styles.statusInactive]}>
+              <Text style={[styles.statusText, isMonitoring ? styles.statusActiveText : styles.statusInactiveText]}>
+                {isMonitoring ? 'ON' : 'OFF'}
+              </Text>
+            </View>
+          </View>
+          {!hasPermissions && (
+            <TouchableOpacity style={styles.permissionButton} onPress={requestPermissions}>
+              <Text style={styles.permissionButtonText}>Grant Permissions</Text>
+            </TouchableOpacity>
+          )}
+          {hasPermissions && !isMonitoring && (
+            <TouchableOpacity style={styles.enableButton} onPress={startMonitoring}>
+              <Text style={styles.enableButtonText}>Enable Auto-Detection</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -206,6 +255,26 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     marginTop: 4,
   },
+  callActiveBanner: {
+    backgroundColor: '#27ae60',
+    margin: 20,
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  callActiveIndicator: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#fff',
+    marginRight: 12,
+  },
+  callActiveText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   recordingBanner: {
     backgroundColor: '#e74c3c',
     margin: 20,
@@ -224,6 +293,73 @@ const styles = StyleSheet.create({
   recordingText: {
     color: '#fff',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  statusContainer: {
+    backgroundColor: '#fff',
+    margin: 20,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statusLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2c3e50',
+  },
+  statusIndicator: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    minWidth: 50,
+    alignItems: 'center',
+  },
+  statusActive: {
+    backgroundColor: '#27ae60',
+  },
+  statusInactive: {
+    backgroundColor: '#95a5a6',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  statusActiveText: {
+    color: '#fff',
+  },
+  statusInactiveText: {
+    color: '#fff',
+  },
+  permissionButton: {
+    backgroundColor: '#f39c12',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  permissionButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  enableButton: {
+    backgroundColor: '#3498db',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  enableButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
   },
   actionsContainer: {
