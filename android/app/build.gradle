@@ -85,6 +85,48 @@ android {
         versionCode 1
         versionName "1.0"
     }
+
+    packagingOptions {
+        pickFirst '**/libc++_shared.so'
+        pickFirst '**/libjsc.so'
+        exclude 'META-INF/androidx.core_core.version'
+        exclude 'META-INF/androidx.lifecycle_lifecycle-runtime.version'
+        exclude 'META-INF/androidx.annotation_annotation.version'
+        exclude 'META-INF/androidx.activity_activity.version'
+        exclude 'META-INF/androidx.fragment_fragment.version'
+        exclude 'META-INF/androidx.appcompat_appcompat.version'
+        exclude 'META-INF/androidx.savedstate_savedstate.version'
+        exclude 'META-INF/androidx.lifecycle_lifecycle-viewmodel.version'
+        exclude 'META-INF/androidx.lifecycle_lifecycle-livedata.version'
+        exclude 'META-INF/androidx.arch.core_core-runtime.version'
+        exclude 'META-INF/DEPENDENCIES'
+        exclude 'META-INF/INDEX.LIST'
+        exclude 'META-INF/io.netty.versions.properties'
+    }
+
+    configurations.all {
+        resolutionStrategy {
+            force 'androidx.core:core:1.16.0'
+            force 'androidx.lifecycle:lifecycle-runtime:2.8.7'
+            force 'androidx.core:core-ktx:1.16.0'
+            force 'androidx.annotation:annotation:1.8.0'
+            eachDependency { details ->
+                if (details.requested.group == 'com.android.support') {
+                    details.useTarget group: 'androidx.legacy', name: 'legacy-support-v4', version: '1.0.0'
+                }
+            }
+        }
+    }
+
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:-deprecation"
+    }
+
+    android.applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "relive-${variant.name}-${variant.versionName}.apk"
+        }
+    }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')

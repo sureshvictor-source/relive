@@ -3,6 +3,11 @@ import { store } from '../store';
 import { startRecording, stopRecording } from '../store/slices/recordingSlice';
 import { addConversation } from '../store/slices/conversationsSlice';
 import { mockCallDetectionService } from './MockCallDetectionService';
+import AudioRecordingService, { RecordingSession } from './AudioRecordingService';
+import TranscriptionService from './TranscriptionService';
+import ConversationAnalysisService from './ConversationAnalysisService';
+import CommitmentTrackingService from './CommitmentTrackingService';
+import DatabaseService from './DatabaseService';
 
 interface CallDetectionModule {
   startCallMonitoring(): Promise<boolean>;
@@ -32,6 +37,7 @@ class CallDetectionService {
   private isMonitoring = false;
   private currentCallId: string | null = null;
   private callStartTime: Date | null = null;
+  private currentRecordingSession: RecordingSession | null = null;
 
   constructor() {
     if (isNativeModuleAvailable) {
@@ -188,10 +194,15 @@ class CallDetectionService {
       }
 
       // Start recording automatically
-      const action = await store.dispatch(startRecording(contactId));
+      this.currentRecordingSession = await AudioRecordingService.startRecording(contactId);
 
-      // Show notification to user
-      this.showCallDetectedNotification(event.contactName || event.phoneNumber || 'Unknown');
+      if (this.currentRecordingSession) {
+        await store.dispatch(startRecording(contactId));
+        // Show notification to user
+        this.showCallDetectedNotification(event.contactName || event.phoneNumber || 'Unknown');
+      } else {
+        console.error('Failed to start audio recording for call');
+      }
 
     } catch (error) {
       console.error('Error handling call started:', error);
@@ -221,6 +232,7 @@ class CallDetectionService {
       }
 
       // Stop recording
+      const completedSession = await AudioRecordingService.stopRecording();
       await store.dispatch(stopRecording());
 
       // Calculate call duration
@@ -233,26 +245,128 @@ class CallDetectionService {
         contactId = await this.findContactByPhoneNumber(event.phoneNumber);
       }
 
-      // Create conversation record
+      // Start comprehensive analysis in background if recording was successful
+      let transcript = '';
+      let analysisCompleted = false;
+      
+      if (completedSession?.filePath) {
+        try {
+          console.log('🎯 Starting comprehensive call analysis...');
+          
+          // 1. Transcribe the audio
+          console.log('📝 Transcribing audio...');
+          const transcriptionSession = await TranscriptionService.transcribeAudioFile(
+            completedSession.filePath,
+            {
+              language: 'en',
+              saveTranscript: true,
+              enableSpeakerDiarization: true,
+            }
+          );
+
+          if (transcriptionSession?.transcript) {
+            transcript = transcriptionSession.transcript;
+            console.log('✅ Transcription completed successfully');
+            
+            // Get contact name for better AI analysis
+            const state = store.getState();
+            const contact = contactId ? state.contacts.contacts.find(c => c.id === contactId) : null;
+            const contactName = contact?.name || 'Unknown Contact';
+            const relationshipType = contact?.relationshipType || 'unknown';
+            
+            // 2. Run AI analysis in parallel
+            console.log('🤖 Starting AI analysis and commitment extraction...');
+            const [conversationAnalysis, extractedCommitments] = await Promise.allSettled([
+              // Comprehensive conversation analysis
+              ConversationAnalysisService.analyzeConversation(
+                this.currentCallId || 'unknown',
+                contactId || 'unknown', 
+                transcript,
+                duration,
+                contactName,
+                relationshipType
+              ),
+              // Extract commitments
+              CommitmentTrackingService.extractCommitmentsFromConversation(
+                this.currentCallId || 'unknown',
+                contactId || 'unknown',
+                transcript,
+                contactName
+              )
+            ]);
+            
+            if (conversationAnalysis.status === 'fulfilled' && conversationAnalysis.value) {
+              console.log('✅ Conversation analysis completed');
+              console.log(`   - Quality Score: ${conversationAnalysis.value.conversationInsights.conversationQuality}/10`);
+              console.log(`   - Emotional Tone: ${conversationAnalysis.value.emotionalAnalysis.overallTone}`);
+              console.log(`   - Key Topics: ${conversationAnalysis.value.conversationInsights.keyTopics.join(', ')}`);
+            } else {
+              console.warn('⚠️  Conversation analysis failed');
+            }
+            
+            if (extractedCommitments.status === 'fulfilled' && extractedCommitments.value) {
+              const commitments = extractedCommitments.value;
+              console.log(`✅ Commitment extraction completed - found ${commitments.length} commitments`);
+              commitments.forEach((commitment, index) => {
+                console.log(`   ${index + 1}. ${commitment.text} (${commitment.whoCommitted}, ${commitment.priority})`);
+              });
+            } else {
+              console.warn('⚠️  Commitment extraction failed');
+            }
+            
+            analysisCompleted = true;
+            
+          } else {
+            console.warn('⚠️  Transcription failed, skipping AI analysis');
+          }
+          
+        } catch (analysisError) {
+          console.warn('⚠️  Comprehensive analysis failed:', analysisError);
+        }
+      }
+
+      // Create conversation record with actual recording path and transcript
       const conversation = {
         contactId: contactId || 'unknown',
         startTime: this.callStartTime,
         endTime,
-        duration,
-        transcript: '', // Will be filled by transcription service
+        duration: completedSession?.duration || duration * 1000, // Use actual recording duration if available
+        transcript,
         emotionalTone: 'neutral' as const,
         engagementLevel: 5,
-        audioFilePath: `recordings/${this.currentCallId}.wav`, // Mock path
+        audioFilePath: completedSession?.filePath || '', // Use actual recording path
+        recordingId: completedSession?.id,
       };
 
       await store.dispatch(addConversation(conversation));
 
+      // Also save to SQLite database with full conversation details
+      const conversationRecord = {
+        id: this.currentCallId,
+        contactId: conversation.contactId,
+        contactName: event.contactName,
+        phoneNumber: event.phoneNumber,
+        startTime: conversation.startTime.toISOString(),
+        endTime: conversation.endTime?.toISOString(),
+        duration: conversation.duration,
+        transcript: conversation.transcript,
+        audioFilePath: conversation.audioFilePath,
+        emotionalTone: conversation.emotionalTone,
+        engagementLevel: conversation.engagementLevel,
+        conversationQuality: 5, // Default, will be updated by analysis
+        analysisCompleted: analysisCompleted
+      };
+
+      await DatabaseService.insertConversation(conversationRecord);
+      console.log('💾 Conversation saved to SQLite database');
+
       // Reset call tracking
       this.currentCallId = null;
       this.callStartTime = null;
+      this.currentRecordingSession = null;
 
-      // Show call completed notification
-      this.showCallCompletedNotification(duration);
+      // Show call completed notification with analysis status
+      this.showCallCompletedNotification(duration, analysisCompleted, transcript.length > 0);
 
     } catch (error) {
       console.error('Error handling call ended:', error);
@@ -301,18 +415,35 @@ class CallDetectionService {
   /**
    * Show notification when call is completed
    */
-  private showCallCompletedNotification(duration: number): void {
+  private showCallCompletedNotification(duration: number, analysisCompleted: boolean = false, transcribed: boolean = false): void {
     const minutes = Math.floor(duration / 60);
     const seconds = duration % 60;
     const durationText = `${minutes}m ${seconds}s`;
 
-    console.log(`✅ Call recording completed. Duration: ${durationText}`);
+    let statusMessage = `✅ Call recording completed. Duration: ${durationText}`;
+    
+    if (transcribed) {
+      statusMessage += '\n📝 Transcript generated';
+      
+      if (analysisCompleted) {
+        statusMessage += '\n🤖 AI analysis completed - commitments extracted';
+      } else {
+        statusMessage += '\n⚠️ AI analysis failed';
+      }
+    } else {
+      statusMessage += '\n⚠️ Transcription failed';
+    }
 
-    // TODO: Implement proper notification
+    console.log(statusMessage);
+
+    // TODO: Implement proper notification with analysis results
     // Alert.alert(
-    //   'Call Recorded',
-    //   `Call recording completed. Duration: ${durationText}`,
-    //   [{ text: 'View Recording', onPress: () => navigation.navigate('Conversations') }]
+    //   'Donna Call Analysis Complete',
+    //   statusMessage,
+    //   [
+    //     { text: 'View Details', onPress: () => navigation.navigate('Conversations') },
+    //     { text: 'OK', style: 'default' }
+    //   ]
     // );
   }
 

@@ -33,6 +33,24 @@
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string></string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Relive needs microphone access to record phone calls with your consent to help track commitments and improve relationships.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Relive uses speech recognition to transcribe your conversations and extract meaningful insights.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Relive needs access to your contacts to link conversations with specific people in your relationships.</string>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Donna sends notifications to alert you about call analysis results, commitment reminders, and relationship insights.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>background-processing</string>
+		<string>voip</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).background-processing</string>
+	</array>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

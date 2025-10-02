@@ -1,6 +1,7 @@
 import Foundation
 import CallKit
 import React
+import Contacts
 
 @objc(CallDetectionModule)
 class CallDetectionModule: RCTEventEmitter, CXCallObserverDelegate {
@@ -43,8 +44,19 @@ class CallDetectionModule: RCTEventEmitter, CXCallObserverDelegate {
     @objc
     func requestPermissions(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
         // iOS CallKit doesn't require special permissions for call observation
-        // The app just needs to be granted microphone permissions for recording
-        resolve(true)
+        // But we should request contacts permission for better caller identification
+        let contactStore = CNContactStore()
+        
+        contactStore.requestAccess(for: .contacts) { granted, error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    NSLog("Contacts permission error: \(error)")
+                }
+                
+                // Always resolve true since contacts permission is optional for call detection
+                resolve(true)
+            }
+        }
     }
 
     @objc
@@ -122,15 +134,37 @@ class CallDetectionModule: RCTEventEmitter, CXCallObserverDelegate {
     // MARK: - Helper Methods
 
     private func extractPhoneNumber(from call: CXCall) -> String? {
-        // Note: iOS CallKit doesn't directly provide phone numbers for privacy
-        // In a real implementation, you might need to use other methods or
-        // rely on the user's contact book matching
+        // Note: iOS CallKit doesn't directly provide phone numbers for privacy reasons
+        // The CXCall object doesn't have a handle property - this information isn't available
+        // Phone numbers would need to be obtained through other means or user input
         return nil
     }
 
     private func extractContactName(from call: CXCall) -> String? {
-        // Similarly, contact names aren't directly available through CallKit
-        // This would typically require integration with the Contacts framework
+        // Try to get contact name if phone number is available
+        guard let phoneNumber = extractPhoneNumber(from: call) else {
+            return nil
+        }
+        
+        return lookupContactName(for: phoneNumber)
+    }
+    
+    private func lookupContactName(for phoneNumber: String) -> String? {
+        let store = CNContactStore()
+        let keysToFetch = [CNContactGivenNameKey, CNContactFamilyNameKey, CNContactPhoneNumbersKey]
+        
+        do {
+            let contacts = try store.unifiedContacts(matching: CNContact.predicateForContacts(matching: CNPhoneNumber(stringValue: phoneNumber)), keysToFetch: keysToFetch as [CNKeyDescriptor])
+            
+            if let contact = contacts.first {
+                let firstName = contact.givenName
+                let lastName = contact.familyName
+                return "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+            }
+        } catch {
+            NSLog("Error looking up contact: \(error)")
+        }
+        
         return nil
     }
 

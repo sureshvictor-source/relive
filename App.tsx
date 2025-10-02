@@ -1,69 +1,93 @@
 /**
- * Relive - Personal Relationship Companion App
+ * Donna - AI-Powered Call Insights Companion
  * @format
  */
 
-import React from 'react';
-import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Provider } from 'react-redux';
 
 import { store } from './src/store';
-import { RootStackParamList } from './src/types';
-import HomeScreen from './src/screens/HomeScreen';
-import ContactsScreen from './src/screens/ContactsScreen';
-import ConversationsScreen from './src/screens/ConversationsScreen';
+import { DonnaThemeProvider } from './src/config/theme';
+import DashboardScreen from './src/screens/DashboardScreen';
+import PermissionsScreen from './src/screens/PermissionsScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
 
-const Stack = createStackNavigator<RootStackParamList>();
+// Legacy screens for fallback
+import ServiceTestScreen from './src/components/ServiceTestScreen';
+
+const Stack = createStackNavigator();
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+  const [initialRoute, setInitialRoute] = useState<string>('Dashboard');
+
+  useEffect(() => {
+    // For demo purposes, we'll start with Dashboard
+    // In production, check permissions and route accordingly
+    setInitialRoute('Dashboard');
+  }, []);
 
   return (
     <Provider store={store}>
-      <SafeAreaProvider>
-        <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-        <NavigationContainer>
-          <Stack.Navigator
-            initialRouteName="Home"
-            screenOptions={{
-              headerStyle: {
-                backgroundColor: '#3498db',
-              },
-              headerTintColor: '#fff',
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
-          >
+      <DonnaThemeProvider>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            <Stack.Navigator
+              initialRouteName={initialRoute}
+              screenOptions={{
+                headerShown: false,
+                cardStyle: { backgroundColor: '#f9fafb' },
+                gestureEnabled: true,
+                gestureDirection: 'horizontal',
+              }}
+            >
+            {/* Main Donna Screens */}
             <Stack.Screen
-              name="Home"
-              component={HomeScreen}
-              options={{ title: 'Relive' }}
+              name="Dashboard"
+              component={DashboardScreen}
+              options={{
+                title: 'Donna - AI Call Insights',
+              }}
             />
             <Stack.Screen
-              name="Contacts"
-              component={ContactsScreen}
-              options={{ title: 'Contacts' }}
+              name="Permissions"
+              component={PermissionsScreen}
+              options={{
+                title: 'Setup Donna',
+              }}
             />
             <Stack.Screen
-              name="Conversations"
-              component={ConversationsScreen}
-              options={{ title: 'Conversations' }}
+              name="Settings"
+              component={SettingsScreen}
+              options={{
+                title: 'Settings',
+              }}
             />
-            {/* TODO: Add remaining screens */}
-            {/*
-            <Stack.Screen name="Recording" component={RecordingScreen} />
-            <Stack.Screen name="Settings" component={SettingsScreen} />
-            <Stack.Screen name="ContactDetail" component={ContactDetailScreen} />
-            <Stack.Screen name="ConversationDetail" component={ConversationDetailScreen} />
-            */}
+
+            {/* Legacy Service Test Screen for Development */}
+            <Stack.Screen
+              name="ServiceTest"
+              component={ServiceTestScreen}
+              options={{
+                title: 'Donna - Service Test',
+                headerShown: true,
+                headerStyle: {
+                  backgroundColor: '#6366f1',
+                },
+                headerTintColor: '#ffffff',
+                headerTitleStyle: {
+                  fontWeight: 'bold',
+                },
+              }}
+            />
           </Stack.Navigator>
         </NavigationContainer>
       </SafeAreaProvider>
-    </Provider>
+    </DonnaThemeProvider>
+  </Provider>
   );
 }
 

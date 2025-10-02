@@ -164,6 +164,7 @@ export interface Reminder {
 
 // Navigation types
 export type RootStackParamList = {
+  ServiceTest: undefined;
   Home: undefined;
   Contacts: undefined;
   Conversations: undefined;
